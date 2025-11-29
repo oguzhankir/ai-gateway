@@ -1,0 +1,16 @@
+app:
+  debug: true
+  environment: "development"
+
+server:
+  reload: true
+  port: 8000
+
+database:
+  echo: true
+
+monitoring:
+  logging:
+    level: "DEBUG"
+    format: "text"
+

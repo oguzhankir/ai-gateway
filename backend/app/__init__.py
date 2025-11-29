@@ -1,0 +1,2 @@
+"""AI Gateway Backend Application."""
+

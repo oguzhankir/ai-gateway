@@ -1,0 +1,218 @@
+app:
+  name: "AI Gateway PII Detection"
+  version: "1.0.0"
+  environment: "development"
+  debug: false
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  workers: 1
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:3001"
+
+database:
+  url: "postgresql+asyncpg://postgres:postgres@postgres:5432/ai_gateway"
+  pool_size: 20
+  max_overflow: 10
+  pool_timeout: 30
+  echo: false
+
+redis:
+  url: "redis://redis:6379/0"
+  decode_responses: false
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  retry_on_timeout: true
+  health_check_interval: 30
+
+rate_limiting:
+  enabled: true
+  tiers:
+    default:
+      requests_per_minute: 60
+      requests_per_hour: 1000
+    premium:
+      requests_per_minute: 300
+      requests_per_hour: 10000
+
+timeout:
+  default: 30
+  provider: 60
+  streaming: 300
+
+cache:
+  enabled: true
+  ttl: 3600
+  similarity_threshold: 0.85
+  embedding_model: "text-embedding-3-small"
+  index_name: "semantic_cache"
+  vector_dimension: 1536
+
+pii:
+  detection:
+    enabled: true
+    default_mode: "fast"  # fast or detailed
+    fast_confidence: 1.0
+  masking:
+    enabled: true
+    session_ttl: 3600
+  patterns:
+    tckn: true
+    phone: true
+    email: true
+    iban: true
+    credit_card: true
+    address: true
+    amount: true
+
+providers:
+  openai:
+    enabled: true
+    api_key: "${OPENAI_API_KEY}"
+    default_model: "gpt-4o-mini"
+    models:
+      - "gpt-4"
+      - "gpt-4-turbo-preview"
+      - "gpt-3.5-turbo"
+      - "gpt-4o-mini"
+    pricing:
+      gpt-4:
+        prompt: 0.03
+        completion: 0.06
+      gpt-4-turbo-preview:
+        prompt: 0.01
+        completion: 0.03
+      gpt-3.5-turbo:
+        prompt: 0.0015
+        completion: 0.002
+      gpt-4o-mini:
+        prompt: 0.00015
+        completion: 0.0006
+    timeout: 60
+    max_retries: 3
+    retry_delay: 1.0
+  
+  gemini:
+    enabled: true
+    api_key: "${GEMINI_API_KEY}"
+    default_model: "gemini-2.5-flash-lite"
+    models:
+      - "gemini-pro"
+      - "gemini-pro-vision"
+      - "gemini-1.5-pro"
+      - "gemini-1.5-flash"
+      - "gemini-2.5-flash-lite"
+    pricing:
+      gemini-pro:
+        prompt: 0.0005
+        completion: 0.0015
+      gemini-pro-vision:
+        prompt: 0.001
+        completion: 0.002
+      gemini-1.5-pro:
+        prompt: 0.00125
+        completion: 0.005
+      gemini-1.5-flash:
+        prompt: 0.000075
+        completion: 0.0003
+      gemini-2.5-flash-lite:
+        prompt: 0.000075
+        completion: 0.0003
+    timeout: 60
+    max_retries: 3
+    retry_delay: 1.0
+
+fallback:
+  enabled: true
+  order:
+    - "openai"
+    - "gemini"
+
+ab_testing:
+  enabled: false
+  variants:
+    - name: "openai_gpt4"
+      provider: "openai"
+      model: "gpt-4"
+      percentage: 50
+    - name: "gemini_pro"
+      provider: "gemini"
+      model: "gemini-pro"
+      percentage: 50
+
+guardrails:
+  enabled: true
+  block_on_violation: true
+  rules:
+    - name: "max_tokens"
+      type: "threshold"
+      enabled: true
+      severity: "error"
+      action: "block"
+      threshold: 10000
+    
+    - name: "no_pii_in_output"
+      type: "pii"
+      enabled: true
+      severity: "error"
+      action: "block"
+      entity_types:
+        - "TCKN"
+        - "CREDIT_CARD"
+        - "IBAN"
+    
+    - name: "content_filter"
+      type: "content"
+      enabled: true
+      severity: "warning"
+      action: "log"
+      patterns:
+        - ".*violence.*"
+        - ".*hate.*"
+
+webhooks:
+  enabled: true
+  timeout: 5
+  max_retries: 3
+  retry_delay: 1.0
+  events:
+    - "request.completed"
+    - "request.failed"
+    - "budget.exceeded"
+    - "guardrail.violated"
+
+budget:
+  enabled: true
+  default_limit: 1000.0
+  default_period: "monthly"  # daily, weekly, monthly
+  alert_thresholds:
+    - 0.5
+    - 0.75
+    - 0.9
+
+queue:
+  enabled: false
+  stream_name: "requests"
+  consumer_group: "workers"
+  workers: 2
+  batch_size: 10
+
+monitoring:
+  prometheus:
+    enabled: true
+    path: "/metrics"
+  logging:
+    level: "INFO"
+    format: "json"
+    file: "logs/app.log"
+    rotation: "midnight"
+    retention: 30
+
+streaming:
+  enabled: true
+  chunk_size: 1024
+  sse_timeout: 300
+

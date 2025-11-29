@@ -1,0 +1,33 @@
+# Custom guardrail rules
+# These rules are loaded in addition to built-in rules
+
+rules:
+  - name: "custom_max_cost"
+    type: "threshold"
+    enabled: true
+    severity: "error"
+    action: "block"
+    description: "Block requests exceeding cost threshold"
+    threshold: 0.10  # $0.10 per request
+    
+  - name: "custom_pii_detection"
+    type: "pii"
+    enabled: true
+    severity: "warning"
+    action: "log"
+    description: "Log when PII is detected in input"
+    entity_types:
+      - "EMAIL"
+      - "PHONE"
+    threshold: 1  # At least 1 entity
+    
+  - name: "custom_content_safety"
+    type: "content"
+    enabled: false
+    severity: "warning"
+    action: "log"
+    description: "Content safety check"
+    patterns:
+      - ".*sensitive.*"
+      - ".*confidential.*"
+
